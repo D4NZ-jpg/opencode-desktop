@@ -17,7 +17,7 @@ import { type LocalProject } from "@/context/layout"
 import { loadSessionsQuery, useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { NewSessionItem, SessionItem, SessionSkeleton } from "./sidebar-items"
-import { sortedRootSessions, workspaceKey } from "./helpers"
+import { sortedRootSessions, type SidebarThreadSortOrder, workspaceKey } from "./helpers"
 import { useQuery } from "@tanstack/solid-query"
 
 type InlineEditorComponent = (props: {
@@ -233,12 +233,15 @@ const WorkspaceActions = (props: {
 )
 
 const WorkspaceSessionList = (props: {
+  now: Accessor<number>
   slug: Accessor<string>
   mobile?: boolean
   ctx: WorkspaceSidebarContext
   showNew: Accessor<boolean>
+  showStatus?: boolean
   loading: Accessor<boolean>
   sessions: Accessor<Session[]>
+  threadSortOrder: Accessor<SidebarThreadSortOrder>
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
@@ -261,8 +264,11 @@ const WorkspaceSessionList = (props: {
           session={session}
           list={props.sessions()}
           navList={props.ctx.navList}
+          now={props.now}
           slug={props.slug()}
           mobile={props.mobile}
+          showStatus={props.showStatus}
+          threadSortOrder={props.threadSortOrder}
           showChild
           sidebarExpanded={props.ctx.sidebarExpanded}
           clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
@@ -294,6 +300,8 @@ export const SortableWorkspace = (props: {
   directory: string
   project: LocalProject
   sortNow: Accessor<number>
+  threadSortOrder: Accessor<SidebarThreadSortOrder>
+  showStatus?: boolean
   mobile?: boolean
 }): JSX.Element => {
   const navigate = useNavigate()
@@ -307,7 +315,7 @@ export const SortableWorkspace = (props: {
     pendingRename: false,
   })
   const slug = createMemo(() => base64Encode(props.directory))
-  const sessions = createMemo(() => sortedRootSessions(workspaceStore, props.sortNow()))
+  const sessions = createMemo(() => sortedRootSessions(workspaceStore, props.sortNow(), props.threadSortOrder()))
   const local = createMemo(() => props.directory === props.project.worktree)
   const active = createMemo(() => workspaceKey(props.ctx.currentDir()) === workspaceKey(props.directory))
   const workspaceValue = createMemo(() => {
@@ -422,12 +430,15 @@ export const SortableWorkspace = (props: {
 
         <Collapsible.Content>
           <WorkspaceSessionList
+            now={props.sortNow}
             slug={slug}
             mobile={props.mobile}
             ctx={props.ctx}
             showNew={showNew}
+            showStatus={props.showStatus}
             loading={() => query.isLoading && count() === 0}
             sessions={sessions}
+            threadSortOrder={props.threadSortOrder}
             hasMore={hasMore}
             loadMore={loadMore}
             language={language}
@@ -442,6 +453,9 @@ export const LocalWorkspace = (props: {
   ctx: WorkspaceSidebarContext
   project: LocalProject
   sortNow: Accessor<number>
+  threadSortOrder: Accessor<SidebarThreadSortOrder>
+  showStatus?: boolean
+  embedded?: boolean
   mobile?: boolean
 }): JSX.Element => {
   const globalSync = useGlobalSync()
@@ -451,7 +465,7 @@ export const LocalWorkspace = (props: {
     return { store, setStore }
   })
   const slug = createMemo(() => base64Encode(props.project.worktree))
-  const sessions = createMemo(() => sortedRootSessions(workspace().store, props.sortNow()))
+  const sessions = createMemo(() => sortedRootSessions(workspace().store, props.sortNow(), props.threadSortOrder()))
   const count = createMemo(() => sessions()?.length ?? 0)
   const query = useQuery(() => ({ ...loadSessionsQuery(props.project.worktree) }))
   const hasMore = createMemo(() => workspace().store.sessionTotal > count())
@@ -463,16 +477,25 @@ export const LocalWorkspace = (props: {
 
   return (
     <div
-      ref={(el) => props.ctx.setScrollContainerRef(el, props.mobile)}
-      class="size-full flex flex-col py-2 overflow-y-auto no-scrollbar [overflow-anchor:none]"
+      ref={(el) => {
+        if (props.embedded) return
+        props.ctx.setScrollContainerRef(el, props.mobile)
+      }}
+      classList={{
+        "py-2": true,
+        "size-full flex flex-col overflow-y-auto no-scrollbar [overflow-anchor:none]": !props.embedded,
+      }}
     >
       <WorkspaceSessionList
+        now={props.sortNow}
         slug={slug}
         mobile={props.mobile}
         ctx={props.ctx}
         showNew={() => false}
+        showStatus={props.showStatus}
         loading={loading}
         sessions={sessions}
+        threadSortOrder={props.threadSortOrder}
         hasMore={hasMore}
         loadMore={loadMore}
         language={language}

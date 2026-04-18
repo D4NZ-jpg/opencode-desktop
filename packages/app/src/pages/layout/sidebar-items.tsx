@@ -14,8 +14,30 @@ import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { messageAgentColor } from "@/utils/agent"
 import { sessionTitle } from "@/utils/session-title"
-import { sessionPermissionRequest } from "../session/composer/session-request-tree"
-import { childSessionOnPath, hasProjectPermissions } from "./helpers"
+import { sessionPermissionRequest, sessionQuestionRequest } from "../session/composer/session-request-tree"
+import { childSessionOnPath, hasProjectPermissions, type SidebarThreadSortOrder, threadSortTimestamp } from "./helpers"
+
+function compactRelativeTime(timestamp: number, now: number, formatter: Intl.RelativeTimeFormat): string {
+  const delta = timestamp - now
+  if (delta > -60_000) return formatter.format(0, "second")
+
+  const minutes = Math.ceil(delta / 60_000)
+  if (minutes > -60) return formatter.format(minutes, "minute")
+
+  const hours = Math.ceil(delta / 3_600_000)
+  if (hours > -24) return formatter.format(hours, "hour")
+
+  const days = Math.ceil(delta / 86_400_000)
+  if (days > -7) return formatter.format(days, "day")
+
+  const weeks = Math.ceil(delta / 604_800_000)
+  if (weeks > -5) return formatter.format(weeks, "week")
+
+  const months = Math.ceil(delta / 2_592_000_000)
+  if (months > -12) return formatter.format(months, "month")
+
+  return formatter.format(Math.ceil(delta / 31_536_000_000), "year")
+}
 
 const OPENCODE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
 
@@ -70,10 +92,13 @@ export type SessionItemProps = {
   session: Session
   list: Session[]
   navList?: Accessor<Session[]>
+  now?: Accessor<number>
   slug: string
   mobile?: boolean
   dense?: boolean
   showTooltip?: boolean
+  showStatus?: boolean
+  threadSortOrder?: Accessor<SidebarThreadSortOrder>
   showChild?: boolean
   level?: number
   sidebarExpanded: Accessor<boolean>
@@ -90,8 +115,10 @@ const SessionRow = (props: {
   tint: Accessor<string | undefined>
   isWorking: Accessor<boolean>
   hasPermissions: Accessor<boolean>
+  hasQuestion: Accessor<boolean>
   hasError: Accessor<boolean>
   unseenCount: Accessor<number>
+  subtitle: Accessor<string | undefined>
   clearHoverProjectSoon: () => void
   sidebarOpened: Accessor<boolean>
   warmPress: () => void
@@ -102,7 +129,7 @@ const SessionRow = (props: {
   return (
     <A
       href={`/${props.slug}/session/${props.session.id}`}
-      class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
+      class="flex min-w-0 w-full items-center gap-1.5 text-left focus:outline-none py-0.5"
       onPointerDown={props.warmPress}
       onFocus={props.warmFocus}
       onClick={() => {
@@ -110,9 +137,17 @@ const SessionRow = (props: {
         props.clearHoverProjectSoon()
       }}
     >
-      <Show when={props.isWorking() || props.hasPermissions() || props.hasError() || props.unseenCount() > 0}>
+      <Show
+        when={
+          props.isWorking() ||
+          props.hasPermissions() ||
+          props.hasQuestion() ||
+          props.hasError() ||
+          props.unseenCount() > 0
+        }
+      >
         <div
-          class="shrink-0 size-6 flex items-center justify-center"
+          class="shrink-0 flex size-5 items-center justify-center"
           style={{ color: props.tint() ?? "var(--icon-interactive-base)" }}
         >
           <Switch>
@@ -120,6 +155,9 @@ const SessionRow = (props: {
               <Spinner class="size-[15px]" />
             </Match>
             <Match when={props.hasPermissions()}>
+              <div class="size-1.5 rounded-full bg-surface-warning-strong" />
+            </Match>
+            <Match when={props.hasQuestion()}>
               <div class="size-1.5 rounded-full bg-surface-warning-strong" />
             </Match>
             <Match when={props.hasError()}>
@@ -131,7 +169,10 @@ const SessionRow = (props: {
           </Switch>
         </div>
       </Show>
-      <span class="text-14-regular text-text-strong min-w-0 flex-1 truncate">{title()}</span>
+      <span class="min-w-0 flex-1 truncate text-12-medium text-text-strong">{title()}</span>
+      <Show when={props.subtitle()}>
+        {(subtitle) => <span class="shrink-0 text-11 text-text-weak">{subtitle()}</span>}
+      </Show>
     </A>
   )
 }
@@ -151,23 +192,45 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       return !permission.autoResponds(item, props.session.directory)
     })
   })
-  const isWorking = createMemo(() => {
+  const hasQuestion = createMemo(() => {
     if (hasPermissions()) return false
+    return !!sessionQuestionRequest(sessionStore.session, sessionStore.question, props.session.id)
+  })
+  const status = createMemo(() => sessionStore.session_status[props.session.id])
+  const isWorking = createMemo(() => {
+    if (hasPermissions() || hasQuestion()) return false
     const pending = (sessionStore.message[props.session.id] ?? []).findLast(
       (message) =>
         message.role === "assistant" &&
         typeof (message as { time?: { completed?: unknown } }).time?.completed !== "number",
     )
-    const status = sessionStore.session_status[props.session.id]
+    const current = status()
     return (
       pending !== undefined ||
-      status?.type === "busy" ||
-      status?.type === "retry" ||
-      (status !== undefined && status.type !== "idle")
+      current?.type === "busy" ||
+      current?.type === "retry" ||
+      (current !== undefined && current.type !== "idle")
     )
   })
 
   const tint = createMemo(() => messageAgentColor(sessionStore.message[props.session.id], sessionStore.agent))
+  const relativeTimeFormatter = createMemo(
+    () => new Intl.RelativeTimeFormat(language.intl(), { numeric: "auto", style: "narrow" }),
+  )
+  const threadSortOrder = createMemo(() => props.threadSortOrder?.() ?? "updated_at")
+  const subtitle = createMemo(() => {
+    if (!props.showStatus) return
+    if (hasPermissions()) return language.t("notification.permission.title")
+    if (hasQuestion()) return language.t("sidebar.status.waiting")
+    if (status()?.type === "retry") return language.t("app.server.retrying")
+    if (hasError()) return language.t("notification.session.error.title")
+    if (isWorking()) return language.t("sidebar.status.processing")
+    return compactRelativeTime(
+      threadSortTimestamp(props.session, threadSortOrder()),
+      props.now?.() ?? Date.now(),
+      relativeTimeFormatter(),
+    )
+  })
   const tooltip = createMemo(() => props.showTooltip ?? (props.mobile || !props.sidebarExpanded()))
   const currentChild = createMemo(() => {
     if (!props.showChild) return
@@ -203,8 +266,10 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       tint={tint}
       isWorking={isWorking}
       hasPermissions={hasPermissions}
+      hasQuestion={hasQuestion}
       hasError={hasError}
       unseenCount={unseenCount}
+      subtitle={subtitle}
       clearHoverProjectSoon={props.clearHoverProjectSoon}
       sidebarOpened={layout.sidebar.opened}
       warmPress={() => warm(2, "high")}
@@ -216,10 +281,18 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     <>
       <div
         data-session-id={props.session.id}
-        class="group/session relative w-full min-w-0 rounded-md cursor-default pr-3 transition-colors hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active"
-        style={{ "padding-left": `${8 + (props.level ?? 0) * 16}px` }}
+        class="group/session relative w-full min-w-0 cursor-default rounded-sm pr-2 transition-colors"
+        classList={{
+          "hover:bg-surface-base [&:has(:focus-visible)]:bg-surface-base has-[.active]:bg-surface-base":
+            !!props.showStatus,
+          "hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active":
+            !props.showStatus,
+        }}
+        style={{
+          "padding-left": `${(props.showStatus ? 6 : 8) + (props.level ?? 0) * (props.showStatus ? 12 : 16)}px`,
+        }}
       >
-        <div class="flex min-w-0 items-center gap-1">
+        <div class="flex min-w-0 items-center gap-0.5">
           <div class="min-w-0 flex-1">
             <Show
               when={!tooltip()}

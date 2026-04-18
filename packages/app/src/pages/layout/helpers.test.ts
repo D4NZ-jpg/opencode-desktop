@@ -14,6 +14,7 @@ import {
   errorMessage,
   hasProjectPermissions,
   latestRootSession,
+  sortProjectsForSidebar,
   workspaceKey,
 } from "./helpers"
 
@@ -197,6 +198,145 @@ describe("layout workspace helpers", () => {
     )
 
     expect(result?.id).toBe("root")
+  })
+
+  test("supports created-at sorting when finding latest root session", () => {
+    const result = latestRootSession(
+      [
+        {
+          path: { directory: "/root" },
+          session: [
+            session({
+              id: "older-update",
+              directory: "/root",
+              time: { created: 30, updated: 90, archived: undefined },
+            }),
+          ],
+        },
+        {
+          path: { directory: "/workspace" },
+          session: [
+            session({
+              id: "newer-create",
+              directory: "/workspace",
+              time: { created: 60, updated: 70, archived: undefined },
+            }),
+          ],
+        },
+      ],
+      120_000,
+      "created_at",
+    )
+
+    expect(result?.id).toBe("newer-create")
+  })
+
+  test("sorts projects by session activity and fallback timestamps", () => {
+    const projects = [
+      { worktree: "/alpha", time: { created: 10, updated: 10 } },
+      { worktree: "/beta", time: { created: 20, updated: 80 } },
+      { worktree: "/gamma", time: { created: 30, updated: 30 } },
+    ]
+    const stores = new Map([
+      [
+        "/alpha",
+        [
+          {
+            path: { directory: "/alpha" },
+            session: [
+              session({ id: "alpha", directory: "/alpha", time: { created: 1, updated: 40, archived: undefined } }),
+            ],
+          },
+        ],
+      ],
+      ["/beta", []],
+      [
+        "/gamma",
+        [
+          {
+            path: { directory: "/gamma" },
+            session: [
+              session({ id: "gamma", directory: "/gamma", time: { created: 2, updated: 60, archived: undefined } }),
+            ],
+          },
+        ],
+      ],
+    ])
+
+    const result = sortProjectsForSidebar(
+      projects,
+      (project) => stores.get(project.worktree) ?? [],
+      120_000,
+      "updated_at",
+    )
+
+    expect(result.map((project) => project.worktree)).toEqual(["/beta", "/gamma", "/alpha"])
+  })
+
+  test("supports created-at sorting for projects", () => {
+    const projects = [
+      { worktree: "/alpha", time: { created: 10, updated: 90 } },
+      { worktree: "/beta", time: { created: 20, updated: 80 } },
+      { worktree: "/gamma", time: { created: 30, updated: 70 } },
+    ]
+    const stores = new Map([
+      [
+        "/alpha",
+        [
+          {
+            path: { directory: "/alpha" },
+            session: [
+              session({ id: "alpha", directory: "/alpha", time: { created: 40, updated: 100, archived: undefined } }),
+            ],
+          },
+        ],
+      ],
+      ["/beta", []],
+      [
+        "/gamma",
+        [
+          {
+            path: { directory: "/gamma" },
+            session: [
+              session({ id: "gamma", directory: "/gamma", time: { created: 60, updated: 65, archived: undefined } }),
+            ],
+          },
+        ],
+      ],
+    ])
+
+    const result = sortProjectsForSidebar(
+      projects,
+      (project) => stores.get(project.worktree) ?? [],
+      120_000,
+      "created_at",
+    )
+
+    expect(result.map((project) => project.worktree)).toEqual(["/gamma", "/alpha", "/beta"])
+  })
+
+  test("preserves manual project order", () => {
+    const projects = [
+      { worktree: "/gamma", name: "Gamma", time: { created: 30, updated: 30 } },
+      { worktree: "/alpha", name: "Alpha", time: { created: 10, updated: 10 } },
+      { worktree: "/beta", name: "Beta", time: { created: 20, updated: 90 } },
+    ]
+
+    const result = sortProjectsForSidebar(
+      projects,
+      () => [
+        {
+          path: { directory: "/ignored" },
+          session: [
+            session({ id: "session", directory: "/ignored", time: { created: 99, updated: 99, archived: undefined } }),
+          ],
+        },
+      ],
+      120_000,
+      "manual",
+    )
+
+    expect(result.map((project) => project.worktree)).toEqual(["/gamma", "/alpha", "/beta"])
   })
 
   test("finds the direct child on the active session path", () => {

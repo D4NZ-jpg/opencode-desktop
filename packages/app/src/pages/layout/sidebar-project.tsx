@@ -11,7 +11,7 @@ import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useNotification } from "@/context/notification"
 import { ProjectIcon, SessionItem, type SessionItemProps } from "./sidebar-items"
-import { displayName, sortedRootSessions } from "./helpers"
+import { displayName, sortedRootSessions, type SidebarThreadSortOrder } from "./helpers"
 
 export type ProjectSidebarContext = {
   currentDir: Accessor<string>
@@ -272,6 +272,7 @@ export const SortableProject = (props: {
   mobile?: boolean
   ctx: ProjectSidebarContext
   sortNow: Accessor<number>
+  threadSortOrder: Accessor<SidebarThreadSortOrder>
 }): JSX.Element => {
   const globalSync = useGlobalSync()
   const language = useLanguage()
@@ -301,10 +302,10 @@ export const SortableProject = (props: {
   }
 
   const projectStore = createMemo(() => globalSync.child(props.project.worktree, { bootstrap: false })[0])
-  const projectSessions = createMemo(() => sortedRootSessions(projectStore(), props.sortNow()))
+  const projectSessions = createMemo(() => sortedRootSessions(projectStore(), props.sortNow(), props.threadSortOrder()))
   const workspaceSessions = (directory: string) => {
     const [data] = globalSync.child(directory, { bootstrap: false })
-    return sortedRootSessions(data, props.sortNow())
+    return sortedRootSessions(data, props.sortNow(), props.threadSortOrder())
   }
   const tile = () => (
     <ProjectTile

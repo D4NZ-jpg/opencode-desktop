@@ -1,5 +1,8 @@
 import { getFilename } from "@opencode-ai/shared/util/path"
-import { type Session } from "@opencode-ai/sdk/v2/client"
+import { type Project, type Session } from "@opencode-ai/sdk/v2/client"
+
+export type SidebarProjectSortOrder = "updated_at" | "created_at" | "manual"
+export type SidebarThreadSortOrder = "updated_at" | "created_at"
 
 type SessionStore = {
   session?: Session[]
@@ -14,11 +17,16 @@ export const workspaceKey = (directory: string) => {
   return value.replace(/\/+$/, "")
 }
 
-function sortSessions(now: number) {
+export const threadSortTimestamp = (session: Session, order: SidebarThreadSortOrder) =>
+  order === "created_at" ? session.time.created : (session.time.updated ?? session.time.created)
+
+function sortSessions(now: number, order: SidebarThreadSortOrder) {
   const oneMinuteAgo = now - 60 * 1000
   return (a: Session, b: Session) => {
-    const aUpdated = a.time.updated ?? a.time.created
-    const bUpdated = b.time.updated ?? b.time.created
+    if (order === "created_at") return threadSortTimestamp(b, order) - threadSortTimestamp(a, order)
+
+    const aUpdated = threadSortTimestamp(a, order)
+    const bUpdated = threadSortTimestamp(b, order)
     const aRecent = aUpdated > oneMinuteAgo
     const bRecent = bUpdated > oneMinuteAgo
     if (aRecent && bRecent) return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
@@ -34,10 +42,11 @@ const isRootVisibleSession = (session: Session, directory: string) =>
 export const roots = (store: SessionStore) =>
   (store.session ?? []).filter((session) => isRootVisibleSession(session, store.path.directory))
 
-export const sortedRootSessions = (store: SessionStore, now: number) => roots(store).sort(sortSessions(now))
+export const sortedRootSessions = (store: SessionStore, now: number, order: SidebarThreadSortOrder = "updated_at") =>
+  roots(store).sort(sortSessions(now, order))
 
-export const latestRootSession = (stores: SessionStore[], now: number) =>
-  stores.flatMap(roots).sort(sortSessions(now))[0]
+export const latestRootSession = (stores: SessionStore[], now: number, order: SidebarThreadSortOrder = "updated_at") =>
+  stores.flatMap(roots).sort(sortSessions(now, order))[0]
 
 export function hasProjectPermissions<T>(
   request: Record<string, T[] | undefined> | undefined,
@@ -61,6 +70,37 @@ export const childSessionOnPath = (sessions: Session[] | undefined, rootID: stri
 
 export const displayName = (project: { name?: string; worktree: string }) =>
   project.name || getFilename(project.worktree)
+
+const projectSortTimestamp = (
+  project: { worktree: string; name?: string; time?: Partial<Project["time"]> },
+  stores: SessionStore[],
+  now: number,
+  order: Exclude<SidebarProjectSortOrder, "manual">,
+) => {
+  const session = latestRootSession(stores, now, order)
+  if (session) return threadSortTimestamp(session, order)
+  if (order === "created_at") return project.time?.created ?? 0
+  return project.time?.updated ?? project.time?.created ?? 0
+}
+
+export const sortProjectsForSidebar = <T extends { worktree: string; name?: string; time?: Partial<Project["time"]> }>(
+  projects: T[],
+  stores: (project: T) => SessionStore[],
+  now: number,
+  order: SidebarProjectSortOrder,
+) => {
+  if (order === "manual") return projects.slice()
+
+  return projects.slice().sort((a, b) => {
+    const bTimestamp = projectSortTimestamp(b, stores(b), now, order)
+    const aTimestamp = projectSortTimestamp(a, stores(a), now, order)
+    if (bTimestamp !== aTimestamp) return bTimestamp - aTimestamp
+
+    const name = displayName(a).localeCompare(displayName(b))
+    if (name !== 0) return name
+    return a.worktree.localeCompare(b.worktree)
+  })
+}
 
 export const errorMessage = (err: unknown, fallback: string) => {
   if (err && typeof err === "object" && "data" in err) {
