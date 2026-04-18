@@ -579,7 +579,7 @@ export default function Layout(props: ParentProps) {
   const projectSessionStores = (project: LocalProject) =>
     projectSessionDirs(project).map((directory) => globalSync.child(directory, { bootstrap: false })[0])
   const sidebarProjects = createMemo(() =>
-    sortProjectsForSidebar(layout.projects.list(), projectSessionStores, sortNow(), store.sidebarProjectSortOrder),
+    sortProjectsForSidebar(layout.projects.list(), projectSessionStores, store.sidebarProjectSortOrder),
   )
 
   const visibleSessionDirs = createMemo(() => {

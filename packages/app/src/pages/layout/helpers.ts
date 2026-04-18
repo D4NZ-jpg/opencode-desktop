@@ -74,11 +74,10 @@ export const displayName = (project: { name?: string; worktree: string }) =>
 const projectSortTimestamp = (
   project: { worktree: string; name?: string; time?: Partial<Project["time"]> },
   stores: SessionStore[],
-  now: number,
   order: Exclude<SidebarProjectSortOrder, "manual">,
 ) => {
-  const session = latestRootSession(stores, now, order)
-  if (session) return threadSortTimestamp(session, order)
+  const timestamps = stores.flatMap(roots).map((session) => threadSortTimestamp(session, order))
+  if (timestamps.length > 0) return Math.max(...timestamps)
   if (order === "created_at") return project.time?.created ?? 0
   return project.time?.updated ?? project.time?.created ?? 0
 }
@@ -86,14 +85,13 @@ const projectSortTimestamp = (
 export const sortProjectsForSidebar = <T extends { worktree: string; name?: string; time?: Partial<Project["time"]> }>(
   projects: T[],
   stores: (project: T) => SessionStore[],
-  now: number,
   order: SidebarProjectSortOrder,
 ) => {
   if (order === "manual") return projects.slice()
 
   return projects.slice().sort((a, b) => {
-    const bTimestamp = projectSortTimestamp(b, stores(b), now, order)
-    const aTimestamp = projectSortTimestamp(a, stores(a), now, order)
+    const bTimestamp = projectSortTimestamp(b, stores(b), order)
+    const aTimestamp = projectSortTimestamp(a, stores(a), order)
     if (bTimestamp !== aTimestamp) return bTimestamp - aTimestamp
 
     const name = displayName(a).localeCompare(displayName(b))

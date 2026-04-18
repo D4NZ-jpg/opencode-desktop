@@ -263,14 +263,53 @@ describe("layout workspace helpers", () => {
       ],
     ])
 
-    const result = sortProjectsForSidebar(
-      projects,
-      (project) => stores.get(project.worktree) ?? [],
-      120_000,
-      "updated_at",
-    )
+    const result = sortProjectsForSidebar(projects, (project) => stores.get(project.worktree) ?? [], "updated_at")
 
     expect(result.map((project) => project.worktree)).toEqual(["/beta", "/gamma", "/alpha"])
+  })
+
+  test("uses the most recent root-session timestamp for project updated-at sorting", () => {
+    const projects = [
+      { worktree: "/alpha", time: { created: 10, updated: 10 } },
+      { worktree: "/beta", time: { created: 20, updated: 20 } },
+    ]
+    const stores = new Map([
+      [
+        "/alpha",
+        [
+          {
+            path: { directory: "/alpha" },
+            session: [
+              session({
+                id: "a-older",
+                directory: "/alpha",
+                time: { created: 1, updated: 119_980, archived: undefined },
+              }),
+              session({
+                id: "z-newer",
+                directory: "/alpha",
+                time: { created: 2, updated: 119_990, archived: undefined },
+              }),
+            ],
+          },
+        ],
+      ],
+      [
+        "/beta",
+        [
+          {
+            path: { directory: "/beta" },
+            session: [
+              session({ id: "beta", directory: "/beta", time: { created: 3, updated: 119_985, archived: undefined } }),
+            ],
+          },
+        ],
+      ],
+    ])
+
+    const result = sortProjectsForSidebar(projects, (project) => stores.get(project.worktree) ?? [], "updated_at")
+
+    expect(result.map((project) => project.worktree)).toEqual(["/alpha", "/beta"])
   })
 
   test("supports created-at sorting for projects", () => {
@@ -305,12 +344,7 @@ describe("layout workspace helpers", () => {
       ],
     ])
 
-    const result = sortProjectsForSidebar(
-      projects,
-      (project) => stores.get(project.worktree) ?? [],
-      120_000,
-      "created_at",
-    )
+    const result = sortProjectsForSidebar(projects, (project) => stores.get(project.worktree) ?? [], "created_at")
 
     expect(result.map((project) => project.worktree)).toEqual(["/gamma", "/alpha", "/beta"])
   })
@@ -332,7 +366,6 @@ describe("layout workspace helpers", () => {
           ],
         },
       ],
-      120_000,
       "manual",
     )
 
