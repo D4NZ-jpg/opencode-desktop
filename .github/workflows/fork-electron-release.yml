@@ -1,0 +1,83 @@
+name: fork-electron-release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-bun
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          if [ -z "$version" ]; then
+            version=$(node -p "require('./packages/desktop-electron/package.json').version")
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "${{ github.repository }}" --title "$tag" --generate-notes
+
+      - name: Prepare
+        working-directory: packages/desktop-electron
+        env:
+          OPENCODE_CHANNEL: prod
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+        run: bun ./scripts/prepare.ts
+
+      - name: Build
+        working-directory: packages/desktop-electron
+        env:
+          OPENCODE_CHANNEL: prod
+        run: bun run build
+
+      - name: Package and publish
+        working-directory: packages/desktop-electron
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          OPENCODE_CHANNEL: prod
+        run: npx electron-builder --mac --publish always --config electron-builder.config.ts
+
+      - name: Upload updater metadata
+        if: ${{ hashFiles('packages/desktop-electron/dist/latest-mac.yml') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v${{ steps.version.outputs.version }}" packages/desktop-electron/dist/latest-mac.yml --clobber --repo "${{ github.repository }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-desktop-macos
+          path: packages/desktop-electron/dist/*

@@ -4,7 +4,13 @@
   "version": "1.14.19",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "description": "Custom Electron fork of OpenCode Desktop.",
+  "homepage": "https://github.com/D4NZ-jpg/opencode-desktop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/D4NZ-jpg/opencode-desktop.git",
+    "directory": "packages/desktop-electron"
+  },
   "author": {
     "name": "OpenCode",
     "email": "hello@opencode.ai"

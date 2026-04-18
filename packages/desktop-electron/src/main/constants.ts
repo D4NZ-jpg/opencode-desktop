@@ -1,5 +1,7 @@
 import { app } from "electron"
 
+export { APP_IDS, APP_NAMES, FORK_REPO_URL, PRODUCT_NAME, PROTOCOL_SCHEME } from "../../branding"
+
 type Channel = "dev" | "beta" | "prod"
 const raw = import.meta.env.OPENCODE_CHANNEL
 export const CHANNEL: Channel = raw === "dev" || raw === "beta" || raw === "prod" ? raw : "dev"

@@ -21,7 +21,8 @@ function tauriDir(id: string) {
   }
 }
 
-// The Tauri app identifier changes between dev/beta/prod builds.
+// Keep the legacy upstream Tauri ids so the fork can import existing user data.
+// The Electron app now stores data under the fork-specific ids from `branding.ts`.
 const TAURI_APP_IDS: Record<string, string> = {
   dev: "ai.opencode.desktop.dev",
   beta: "ai.opencode.desktop.beta",

@@ -17,26 +17,11 @@ try {
 } catch {}
 
 process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"
-
-const APP_NAMES: Record<string, string> = {
-  dev: "OpenCode Dev",
-  beta: "OpenCode Beta",
-  prod: "OpenCode",
-}
-const APP_IDS: Record<string, string> = {
-  dev: "ai.opencode.desktop.dev",
-  beta: "ai.opencode.desktop.beta",
-  prod: "ai.opencode.desktop",
-}
-const appId = app.isPackaged ? APP_IDS[CHANNEL] : "ai.opencode.desktop.dev"
-app.setName(app.isPackaged ? APP_NAMES[CHANNEL] : "OpenCode Dev")
-app.setAppUserModelId(appId)
-app.setPath("userData", join(app.getPath("appData"), appId))
 const { autoUpdater } = pkg
 
 import type { InitStep, ServerReadyData, SqliteMigrationProgress, WslConfig } from "../preload/types"
 import { checkAppExists, resolveAppPath, wslPath } from "./apps"
-import { CHANNEL, UPDATER_ENABLED } from "./constants"
+import { APP_IDS, APP_NAMES, CHANNEL, PROTOCOL_SCHEME, UPDATER_ENABLED } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand, sendSqliteMigrationProgress } from "./ipc"
 import { initLogging } from "./logging"
 import { parseMarkdown } from "./markdown"
@@ -45,6 +30,11 @@ import { getDefaultServerUrl, getWslConfig, setDefaultServerUrl, setWslConfig, s
 import { createLoadingWindow, createMainWindow, setBackgroundColor, setDockIcon } from "./windows"
 import { drizzle } from "drizzle-orm/node-sqlite/driver"
 import type { Server } from "virtual:opencode-server"
+
+const appId = app.isPackaged ? APP_IDS[CHANNEL] : APP_IDS.dev
+app.setName(app.isPackaged ? APP_NAMES[CHANNEL] : APP_NAMES.dev)
+app.setAppUserModelId(appId)
+app.setPath("userData", join(app.getPath("appData"), appId))
 
 const initEmitter = new EventEmitter()
 let initStep: InitStep = { phase: "server_waiting" }
@@ -75,7 +65,7 @@ function setupApp() {
   }
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
-    const urls = argv.filter((arg: string) => arg.startsWith("opencode://"))
+    const urls = argv.filter((arg: string) => arg.startsWith(`${PROTOCOL_SCHEME}://`))
     if (urls.length) {
       logger.log("deep link received via second-instance", { urls })
       emitDeepLinks(urls)
@@ -105,7 +95,7 @@ function setupApp() {
   }
 
   void app.whenReady().then(async () => {
-    app.setAsDefaultProtocolClient("opencode")
+    app.setAsDefaultProtocolClient(PROTOCOL_SCHEME)
     setDockIcon()
     setupAutoUpdater()
     await initialize()

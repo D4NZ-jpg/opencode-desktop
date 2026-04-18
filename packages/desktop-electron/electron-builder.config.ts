@@ -5,6 +5,8 @@ import { promisify } from "node:util"
 
 import type { Configuration } from "electron-builder"
 
+import { APP_IDS, APP_NAMES, FORK_REPO, PRODUCT_NAME, PROTOCOL_SCHEME } from "./branding"
+
 const execFileAsync = promisify(execFile)
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const signScript = path.join(rootDir, "script", "sign-windows.ps1")
@@ -26,8 +28,15 @@ const channel = (() => {
   return "dev"
 })()
 
+const repo = (process.env.GH_REPO ?? process.env.GITHUB_REPOSITORY ?? FORK_REPO).trim()
+const [publishOwner, publishRepo] = repo.split("/")
+
+if (!publishOwner || !publishRepo) {
+  throw new Error(`Invalid GitHub repository slug: ${repo}`)
+}
+
 const getBase = (): Configuration => ({
-  artifactName: "opencode-electron-${os}-${arch}.${ext}",
+  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -54,8 +63,8 @@ const getBase = (): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: PRODUCT_NAME,
+    schemes: [PROTOCOL_SCHEME],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -84,29 +93,29 @@ function getConfig() {
     case "dev": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.dev",
-        productName: "OpenCode Dev",
-        rpm: { packageName: "opencode-dev" },
+        appId: APP_IDS.dev,
+        productName: APP_NAMES.dev,
+        rpm: { packageName: "opencode-desktop-dev" },
       }
     }
     case "beta": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.beta",
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
-        rpm: { packageName: "opencode-beta" },
+        appId: APP_IDS.beta,
+        productName: APP_NAMES.beta,
+        protocols: { name: APP_NAMES.beta, schemes: [PROTOCOL_SCHEME] },
+        publish: { provider: "github", owner: publishOwner, repo: publishRepo, channel: "latest" },
+        rpm: { packageName: "opencode-desktop-beta" },
       }
     }
     case "prod": {
       return {
         ...base,
-        appId: "ai.opencode.desktop",
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
-        rpm: { packageName: "opencode" },
+        appId: APP_IDS.prod,
+        productName: APP_NAMES.prod,
+        protocols: { name: APP_NAMES.prod, schemes: [PROTOCOL_SCHEME] },
+        publish: { provider: "github", owner: publishOwner, repo: publishRepo, channel: "latest" },
+        rpm: { packageName: "opencode-desktop" },
       }
     }
   }
