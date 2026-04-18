@@ -1,32 +1,55 @@
-# OpenCode Desktop
+# OpenCode Desktop Electron
 
-Native OpenCode desktop app, built with Tauri v2.
+Electron desktop app for this fork.
 
 ## Development
 
 From the repo root:
 
 ```bash
-bun install
-bun run --cwd packages/desktop tauri dev
+bun install --frozen-lockfile
+bun run dev:desktop
 ```
 
-This starts the Vite dev server on http://localhost:1420 and opens the native window.
-
-If you only want the web dev server (no native shell):
+Or run it directly from the package:
 
 ```bash
-bun run --cwd packages/desktop dev
+bun run --cwd packages/desktop-electron dev
 ```
+
+This runs `electron-vite dev`, opens the desktop window, and prepares the embedded server bundle used by Electron.
+
+- Renderer changes use Vite HMR.
+- Main and preload changes rebuild and restart Electron.
 
 ## Build
 
-To create a production `dist/` and build the native app bundle:
+To create the production Electron bundles:
 
 ```bash
-bun run --cwd packages/desktop tauri build
+bun run build:desktop
+```
+
+Or directly:
+
+```bash
+bun run --cwd packages/desktop-electron build
+```
+
+## Package
+
+To create a packaged desktop app for the current platform:
+
+```bash
+bun run package:desktop
+```
+
+For a macOS package specifically:
+
+```bash
+bun run --cwd packages/desktop-electron package:mac
 ```
 
 ## Prerequisites
 
-Running the desktop app requires additional Tauri dependencies (Rust toolchain, platform-specific libraries). See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for setup instructions.
+You only need Bun and the normal workspace dependencies for local Electron development. Tauri/Rust setup is not required for this package.
