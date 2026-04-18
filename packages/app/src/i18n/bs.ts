@@ -610,6 +610,14 @@ export const dict = {
   "sidebar.project.recentSessions": "Nedavne sesije",
   "sidebar.project.viewAllSessions": "Prikaži sve sesije",
   "sidebar.project.clearNotifications": "Očisti obavijesti",
+  "sidebar.sort.label": "Sortiraj",
+  "sidebar.sort.projects": "Projekti",
+  "sidebar.sort.threads": "Razgovori",
+  "sidebar.sort.updatedAt": "Zadnje ažurirano",
+  "sidebar.sort.createdAt": "Kreirano",
+  "sidebar.sort.manual": "Ručno",
+  "sidebar.status.processing": "Obrađuje se",
+  "sidebar.status.waiting": "Čeka unos",
 
   "app.name.desktop": "OpenCode Desktop",
 

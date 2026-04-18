@@ -603,6 +603,14 @@ export const dict = {
   "sidebar.project.recentSessions": "最近会话",
   "sidebar.project.viewAllSessions": "查看全部会话",
   "sidebar.project.clearNotifications": "清除通知",
+  "sidebar.sort.label": "排序",
+  "sidebar.sort.projects": "项目",
+  "sidebar.sort.threads": "对话",
+  "sidebar.sort.updatedAt": "最后更新",
+  "sidebar.sort.createdAt": "创建时间",
+  "sidebar.sort.manual": "手动",
+  "sidebar.status.processing": "处理中",
+  "sidebar.status.waiting": "等待输入",
 
   "app.name.desktop": "OpenCode Desktop",
 

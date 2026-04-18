@@ -613,6 +613,14 @@ export const dict = {
   "sidebar.project.recentSessions": "Nylige sesjoner",
   "sidebar.project.viewAllSessions": "Vis alle sesjoner",
   "sidebar.project.clearNotifications": "Fjern varsler",
+  "sidebar.sort.label": "Sorter",
+  "sidebar.sort.projects": "Prosjekter",
+  "sidebar.sort.threads": "Samtaler",
+  "sidebar.sort.updatedAt": "Sist oppdatert",
+  "sidebar.sort.createdAt": "Opprettet",
+  "sidebar.sort.manual": "Manuell",
+  "sidebar.status.processing": "Behandles",
+  "sidebar.status.waiting": "Venter på input",
 
   "app.name.desktop": "OpenCode Desktop",
 

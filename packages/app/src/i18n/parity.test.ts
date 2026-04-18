@@ -18,13 +18,31 @@ import { dict as zht } from "./zht"
 import { dict as tr } from "./tr"
 
 const locales = [ar, br, bs, da, de, es, fr, ja, ko, no, pl, ru, th, tr, zh, zht]
-const keys = ["command.session.previous.unseen", "command.session.next.unseen"] as const
+const translatedKeys = [
+  "command.session.previous.unseen",
+  "command.session.next.unseen",
+  "sidebar.sort.label",
+  "sidebar.sort.projects",
+  "sidebar.sort.threads",
+  "sidebar.sort.updatedAt",
+  "sidebar.sort.createdAt",
+  "sidebar.status.processing",
+  "sidebar.status.waiting",
+] as const
+const definedKeys = [...translatedKeys, "sidebar.sort.manual"] as const
 
 describe("i18n parity", () => {
-  test("non-English locales translate targeted unseen session keys", () => {
+  test("non-English locales define targeted sidebar and unseen session keys", () => {
     for (const locale of locales) {
-      for (const key of keys) {
+      for (const key of definedKeys) {
         expect(locale[key]).toBeDefined()
+      }
+    }
+  })
+
+  test("non-English locales translate targeted sidebar and unseen session keys", () => {
+    for (const locale of locales) {
+      for (const key of translatedKeys) {
         expect(locale[key]).not.toBe(en[key])
       }
     }

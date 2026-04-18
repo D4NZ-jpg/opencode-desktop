@@ -604,6 +604,14 @@ export const dict = {
   "sidebar.project.recentSessions": "เซสชันล่าสุด",
   "sidebar.project.viewAllSessions": "ดูเซสชันทั้งหมด",
   "sidebar.project.clearNotifications": "ล้างการแจ้งเตือน",
+  "sidebar.sort.label": "เรียงลำดับ",
+  "sidebar.sort.projects": "โปรเจกต์",
+  "sidebar.sort.threads": "บทสนทนา",
+  "sidebar.sort.updatedAt": "อัปเดตล่าสุด",
+  "sidebar.sort.createdAt": "สร้างเมื่อ",
+  "sidebar.sort.manual": "ด้วยตนเอง",
+  "sidebar.status.processing": "กำลังประมวลผล",
+  "sidebar.status.waiting": "รอการป้อนข้อมูล",
 
   "app.name.desktop": "OpenCode Desktop",
 

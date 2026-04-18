@@ -616,6 +616,14 @@ export const dict = {
   "sidebar.project.recentSessions": "Son oturumlar",
   "sidebar.project.viewAllSessions": "Tüm oturumları görüntüle",
   "sidebar.project.clearNotifications": "Bildirimleri temizle",
+  "sidebar.sort.label": "Sırala",
+  "sidebar.sort.projects": "Projeler",
+  "sidebar.sort.threads": "Sohbetler",
+  "sidebar.sort.updatedAt": "Son güncelleme",
+  "sidebar.sort.createdAt": "Oluşturulma",
+  "sidebar.sort.manual": "Manuel",
+  "sidebar.status.processing": "İşleniyor",
+  "sidebar.status.waiting": "Girdi bekleniyor",
 
   "app.name.desktop": "OpenCode Masaüstü",
 
