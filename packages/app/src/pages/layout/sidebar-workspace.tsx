@@ -86,7 +86,6 @@ const WorkspaceHeader = (props: {
   busy: Accessor<boolean>
   open: Accessor<boolean>
   directory: string
-  language: ReturnType<typeof useLanguage>
   branch: Accessor<string | undefined>
   workspaceValue: Accessor<string>
   workspaceEditActive: Accessor<boolean>
@@ -96,18 +95,15 @@ const WorkspaceHeader = (props: {
   projectId?: string
 }): JSX.Element => (
   <div class="flex items-center gap-1 min-w-0 flex-1">
-    <div class="flex items-center justify-center shrink-0 size-6">
+    <div class="flex items-center justify-center shrink-0 size-5">
       <Show when={props.busy()} fallback={<Icon name="branch" size="small" />}>
         <Spinner class="size-[15px]" />
       </Show>
     </div>
-    <span class="text-14-medium text-text-base shrink-0">
-      {props.local() ? props.language.t("workspace.type.local") : props.language.t("workspace.type.sandbox")} :
-    </span>
     <Show
       when={!props.local()}
       fallback={
-        <span class="text-14-medium text-text-base min-w-0 truncate">
+        <span class="text-12-medium text-text-base min-w-0 truncate">
           {props.branch() ?? getFilename(props.directory)}
         </span>
       }
@@ -121,8 +117,8 @@ const WorkspaceHeader = (props: {
           props.renameWorkspace(props.directory, trimmed, props.projectId, props.branch())
           props.setEditor("value", props.workspaceValue())
         }}
-        class="text-14-medium text-text-base min-w-0 truncate"
-        displayClass="text-14-medium text-text-base min-w-0 truncate"
+        class="text-12-medium text-text-base min-w-0 truncate"
+        displayClass="text-12-medium text-text-base min-w-0 truncate"
         editing={props.workspaceEditActive()}
         stopPropagation={false}
         openOnDblClick={false}
@@ -267,6 +263,7 @@ const WorkspaceSessionList = (props: {
           now={props.now}
           slug={props.slug()}
           mobile={props.mobile}
+          dimInactive
           showStatus={props.showStatus}
           threadSortOrder={props.threadSortOrder}
           showChild
@@ -331,7 +328,8 @@ export const SortableWorkspace = (props: {
   const busy = createMemo(() => props.ctx.isBusy(props.directory))
   const loading = () => query.isLoading && count() === 0
   const touch = createMediaQuery("(hover: none)")
-  const showNew = createMemo(() => !loading() && (touch() || count() === 0 || (active() && !params.id)))
+  const onNewSessionRoute = createMemo(() => active() && !params.id)
+  const showNew = createMemo(() => touch() && !loading() && !onNewSessionRoute())
   const loadMore = async () => {
     setWorkspaceStore("limit", (limit) => (limit ?? 0) + 5)
     await globalSync.project.loadSessions(props.directory)
@@ -344,7 +342,6 @@ export const SortableWorkspace = (props: {
       busy={busy}
       open={open}
       directory={props.directory}
-      language={language}
       branch={() => workspaceStore.vcs?.branch}
       workspaceValue={workspaceValue}
       workspaceEditActive={workspaceEditActive}
@@ -371,6 +368,7 @@ export const SortableWorkspace = (props: {
       // @ts-ignore
       use:sortable
       classList={{
+        "opacity-70": !active() && !busy() && !sortable.isActiveDraggable,
         "opacity-30": sortable.isActiveDraggable,
         "opacity-50 pointer-events-none": busy(),
       }}
@@ -387,7 +385,7 @@ export const SortableWorkspace = (props: {
                 when={workspaceEditActive()}
                 fallback={
                   <Collapsible.Trigger
-                    class={`flex items-center justify-between w-full pl-2 py-1.5 rounded-md hover:bg-surface-raised-base-hover transition-[padding] duration-200 ${
+                    class={`flex items-center justify-between w-full pl-2 py-1 rounded-md hover:bg-surface-raised-base-hover transition-[padding] duration-200 ${
                       menu.open ? "pr-16" : "pr-2"
                     } group-hover/workspace:pr-16 group-focus-within/workspace:pr-16`}
                     data-action="workspace-toggle"
@@ -398,7 +396,7 @@ export const SortableWorkspace = (props: {
                 }
               >
                 <div
-                  class={`flex items-center justify-between w-full pl-2 py-1.5 rounded-md transition-[padding] duration-200 ${
+                  class={`flex items-center justify-between w-full pl-2 py-1 rounded-md transition-[padding] duration-200 ${
                     menu.open ? "pr-16" : "pr-2"
                   } group-hover/workspace:pr-16 group-focus-within/workspace:pr-16`}
                 >

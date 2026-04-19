@@ -94,6 +94,7 @@ export type SessionItemProps = {
   navList?: Accessor<Session[]>
   now?: Accessor<number>
   slug: string
+  dimInactive?: boolean
   mobile?: boolean
   dense?: boolean
   showTooltip?: boolean
@@ -232,6 +233,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     )
   })
   const tooltip = createMemo(() => props.showTooltip ?? (props.mobile || !props.sidebarExpanded()))
+  const active = createMemo(() => params.id === props.session.id && params.dir === props.slug)
   const currentChild = createMemo(() => {
     if (!props.showChild) return
     return childSessionOnPath(sessionStore.session, props.session.id, params.id)
@@ -283,6 +285,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
         data-session-id={props.session.id}
         class="group/session relative w-full min-w-0 cursor-default rounded-sm pr-2 transition-colors"
         classList={{
+          "opacity-70": !!props.dimInactive && !active(),
           "hover:bg-surface-base [&:has(:focus-visible)]:bg-surface-base has-[.active]:bg-surface-base":
             !!props.showStatus,
           "hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active":

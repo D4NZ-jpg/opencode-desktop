@@ -535,13 +535,12 @@ export default function Layout(props: ParentProps) {
   const workspaceLabel = (directory: string, branch?: string, projectId?: string) =>
     workspaceName(directory, projectId, branch) ?? branch ?? getFilename(directory)
 
-  const projectWorkspacesEnabled = (project: LocalProject | undefined) => {
+  const projectHasMultipleWorkspaces = (project: LocalProject | undefined) => {
     if (!project) return false
     if (project.vcs !== "git") return false
-    return layout.sidebar.workspaces(project.worktree)()
+    return workspaceIds(project).length > 1
   }
 
-  const workspaceSetting = createMemo(() => projectWorkspacesEnabled(currentProject()))
   const multiProjectPanelVisible = createMemo(() => layout.sidebar.opened() || layout.mobileSidebar.opened())
   const projectExpanded = (project: LocalProject | undefined) => {
     if (!project) return false
@@ -549,13 +548,13 @@ export default function Layout(props: ParentProps) {
   }
   const projectSessionDirs = (project: LocalProject | undefined) => {
     if (!project) return [] as string[]
-    if (!projectWorkspacesEnabled(project)) return [project.worktree]
+    if (!projectHasMultipleWorkspaces(project)) return [project.worktree]
     return workspaceIds(project)
   }
   const visibleProjectSessionDirs = (project: LocalProject | undefined) => {
     if (!project) return [] as string[]
     if (!projectExpanded(project)) return [] as string[]
-    if (!projectWorkspacesEnabled(project)) return [project.worktree]
+    if (!projectHasMultipleWorkspaces(project)) return [project.worktree]
 
     const activeDir = currentDir()
     return workspaceIds(project).filter((directory) => {
@@ -567,7 +566,7 @@ export default function Layout(props: ParentProps) {
   const navigationSessionDirs = createMemo(() => {
     const project = currentProject()
     if (!project) return [] as string[]
-    if (!projectWorkspacesEnabled(project)) return [project.worktree]
+    if (!projectHasMultipleWorkspaces(project)) return [project.worktree]
 
     const activeDir = currentDir()
     return workspaceIds(project).filter((directory) => {
@@ -602,7 +601,7 @@ export default function Layout(props: ParentProps) {
           workspaceKey(item.worktree) === key || item.sandboxes?.some((sandbox) => workspaceKey(sandbox) === key),
       )
       if (!project) continue
-      if (project.vcs === "git" && layout.sidebar.workspaces(project.worktree)()) continue
+      if (projectHasMultipleWorkspaces(project)) continue
       setStore("workspaceExpanded", directory, false)
     }
   })
@@ -1058,34 +1057,11 @@ export default function Layout(props: ParentProps) {
         title: language.t("workspace.new"),
         category: language.t("command.category.workspace"),
         keybind: "mod+shift+w",
-        disabled: !workspaceSetting(),
-        onSelect: () => {
-          const project = currentProject()
-          if (!project) return
-          return createWorkspace(project)
-        },
-      },
-      {
-        id: "workspace.toggle",
-        title: language.t("command.workspace.toggle"),
-        description: language.t("command.workspace.toggle.description"),
-        category: language.t("command.category.workspace"),
-        slash: "workspace",
         disabled: !currentProject() || currentProject()?.vcs !== "git",
         onSelect: () => {
           const project = currentProject()
           if (!project) return
-          if (project.vcs !== "git") return
-          const wasEnabled = layout.sidebar.workspaces(project.worktree)()
-          layout.sidebar.toggleWorkspaces(project.worktree)
-          showToast({
-            title: wasEnabled
-              ? language.t("toast.workspace.disabled.title")
-              : language.t("toast.workspace.enabled.title"),
-            description: wasEnabled
-              ? language.t("toast.workspace.disabled.description")
-              : language.t("toast.workspace.enabled.description"),
-          })
+          return createWorkspace(project)
         },
       },
       {
@@ -1389,16 +1365,6 @@ export default function Layout(props: ParentProps) {
     queueMicrotask(() => {
       void navigateToProject(next.worktree)
     })
-  }
-
-  function toggleProjectWorkspaces(project: LocalProject) {
-    const enabled = layout.sidebar.workspaces(project.worktree)()
-    if (enabled) {
-      layout.sidebar.toggleWorkspaces(project.worktree)
-      return
-    }
-    if (project.vcs !== "git") return
-    layout.sidebar.toggleWorkspaces(project.worktree)
   }
 
   const showEditProjectDialog = (project: LocalProject) => {
@@ -2112,8 +2078,7 @@ export default function Layout(props: ParentProps) {
     const slug = createMemo(() => base64Encode(worktree()))
     const dirs = createMemo(() => projectSessionDirs(project()))
     const workspaces = createMemo(() => projectSessionDirs(project()))
-    const workspacesEnabled = createMemo(() => projectWorkspacesEnabled(project()))
-    const canToggle = createMemo(() => project().vcs === "git" || workspacesEnabled())
+    const workspacesEnabled = createMemo(() => projectHasMultipleWorkspaces(project()))
     const expanded = createMemo(() => projectExpanded(project()))
     const selected = createMemo(() => {
       const directory = currentDir()
@@ -2138,7 +2103,6 @@ export default function Layout(props: ParentProps) {
         class="flex flex-col gap-0.5 transition-opacity"
         classList={{
           "opacity-25": isManual() && sortable.isActiveDraggable,
-          "opacity-50": !selected() && !(isManual() && sortable.isActiveDraggable),
         }}
       >
         <div
@@ -2146,6 +2110,7 @@ export default function Layout(props: ParentProps) {
           classList={{
             "bg-surface-base": selected(),
             "hover:bg-surface-base": !selected(),
+            "opacity-70": !selected() && !(isManual() && sortable.isActiveDraggable),
           }}
         >
           <button
@@ -2165,11 +2130,25 @@ export default function Layout(props: ParentProps) {
             <div
               role="button"
               tabIndex={0}
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 pl-0.5 pr-12 py-0.5"
-              onClick={() => void navigateToProject(worktree())}
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 pl-0.5 py-0.5"
+              classList={{
+                "pr-18": project().vcs === "git" && !workspacesEnabled(),
+                "pr-12": project().vcs !== "git" || workspacesEnabled(),
+              }}
+              onClick={() => {
+                if (workspacesEnabled()) {
+                  toggleExpanded()
+                  return
+                }
+                void navigateToProject(worktree())
+              }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") return
                 event.preventDefault()
+                if (workspacesEnabled()) {
+                  toggleExpanded()
+                  return
+                }
                 void navigateToProject(worktree())
               }}
             >
@@ -2185,16 +2164,35 @@ export default function Layout(props: ParentProps) {
             </div>
           </Tooltip>
 
-          <IconButton
-            icon="new-session"
-            variant="ghost"
-            aria-label={language.t("command.session.new")}
-            class="absolute right-6 top-1/2 size-6 -translate-y-1/2 rounded-md opacity-0 transition-[opacity,background-color] pointer-events-none group-hover/project-row:pointer-events-auto group-hover/project-row:opacity-100 group-focus-within/project-row:pointer-events-auto group-focus-within/project-row:opacity-100"
-            onClick={(event: MouseEvent) => {
-              event.stopPropagation()
-              navigateWithSidebarReset(`/${slug()}/session`)
-            }}
-          />
+          <Show when={project().vcs === "git"}>
+            <IconButton
+              icon="plus-small"
+              variant="ghost"
+              aria-label={language.t("workspace.new")}
+              class="absolute top-1/2 size-6 -translate-y-1/2 rounded-md opacity-0 transition-[opacity,background-color] pointer-events-none group-hover/project-row:pointer-events-auto group-hover/project-row:opacity-100 group-focus-within/project-row:pointer-events-auto group-focus-within/project-row:opacity-100"
+              classList={{
+                "right-12": !workspacesEnabled(),
+                "right-6": workspacesEnabled(),
+              }}
+              onClick={(event: MouseEvent) => {
+                event.stopPropagation()
+                void createWorkspace(project())
+              }}
+            />
+          </Show>
+
+          <Show when={!workspacesEnabled()}>
+            <IconButton
+              icon="new-session"
+              variant="ghost"
+              aria-label={language.t("command.session.new")}
+              class="absolute right-6 top-1/2 size-6 -translate-y-1/2 rounded-md opacity-0 transition-[opacity,background-color] pointer-events-none group-hover/project-row:pointer-events-auto group-hover/project-row:opacity-100 group-focus-within/project-row:pointer-events-auto group-focus-within/project-row:opacity-100"
+              onClick={(event: MouseEvent) => {
+                event.stopPropagation()
+                navigateWithSidebarReset(`/${slug()}/session`)
+              }}
+            />
+          </Show>
 
           <DropdownMenu modal>
             <DropdownMenu.Trigger
@@ -2210,18 +2208,6 @@ export default function Layout(props: ParentProps) {
               <DropdownMenu.Content class="mt-1">
                 <DropdownMenu.Item onSelect={() => showEditProjectDialog(project())}>
                   <DropdownMenu.ItemLabel>{language.t("common.edit")}</DropdownMenu.ItemLabel>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  data-action="project-workspaces-toggle"
-                  data-project={slug()}
-                  disabled={!canToggle()}
-                  onSelect={() => toggleProjectWorkspaces(project())}
-                >
-                  <DropdownMenu.ItemLabel>
-                    {workspacesEnabled()
-                      ? language.t("sidebar.workspaces.disable")
-                      : language.t("sidebar.workspaces.enable")}
-                  </DropdownMenu.ItemLabel>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item
                   data-action="project-clear-notifications"
@@ -2260,16 +2246,6 @@ export default function Layout(props: ParentProps) {
                 />
               }
             >
-              <button
-                type="button"
-                class="flex h-5 items-center gap-1 rounded-md px-1 text-12-medium text-text-weak transition-colors hover:bg-surface-base active:bg-surface-base"
-                onClick={() => {
-                  void createWorkspace(project())
-                }}
-              >
-                <Icon name="plus-small" size="small" class="shrink-0 text-icon-base" />
-                <span>{language.t("workspace.new")}</span>
-              </button>
               <DragDropProvider
                 onDragStart={(event) => handleWorkspaceDragStart(project(), event)}
                 onDragEnd={handleWorkspaceDragEnd}
