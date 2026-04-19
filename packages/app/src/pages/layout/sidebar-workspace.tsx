@@ -482,7 +482,7 @@ export const LocalWorkspace = (props: {
         props.ctx.setScrollContainerRef(el, props.mobile)
       }}
       classList={{
-        "py-2": true,
+        "py-2": !props.embedded || count() > 0 || loading() || hasMore(),
         "size-full flex flex-col overflow-y-auto no-scrollbar [overflow-anchor:none]": !props.embedded,
       }}
     >
