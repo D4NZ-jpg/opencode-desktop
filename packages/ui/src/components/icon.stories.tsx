@@ -28,6 +28,7 @@ Use with \`Button\`, \`IconButton\`, and menu items.
 
 const names = [
   "align-right",
+  "arrow-up-down",
   "arrow-up",
   "arrow-left",
   "arrow-right",

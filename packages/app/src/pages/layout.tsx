@@ -1969,11 +1969,11 @@ export default function Layout(props: ParentProps) {
       <DropdownMenu modal>
         <DropdownMenu.Trigger
           as={IconButton}
-          icon="dot-grid"
+          icon="arrow-up-down"
           variant="ghost"
           size="small"
           class="shrink-0 size-7 rounded-md data-[expanded]:bg-surface-base-active"
-          aria-label={language.t("common.moreOptions")}
+          aria-label={language.t("sidebar.sort.projects")}
         />
         <DropdownMenu.Portal>
           <DropdownMenu.Content class="mt-1 [&_[data-slot=dropdown-menu-group-label]]:px-1 [&_[data-slot=dropdown-menu-radio-item]]:pl-1 [&_[data-slot=dropdown-menu-radio-item]+[data-slot=dropdown-menu-radio-item]]:mt-1">
@@ -2022,10 +2022,6 @@ export default function Layout(props: ParentProps) {
                 </For>
               </DropdownMenu.RadioGroup>
             </DropdownMenu.Group>
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item onSelect={() => platform.openLink("https://opencode.ai/desktop-feedback")}>
-              <DropdownMenu.ItemLabel>{language.t("sidebar.help")}</DropdownMenu.ItemLabel>
-            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu>
