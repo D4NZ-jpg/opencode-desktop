@@ -606,12 +606,6 @@ export default function Layout(props: ParentProps) {
     }
   })
 
-  createEffect(() => {
-    const directory = currentDir()
-    if (!directory) return
-    setStore("projectExpanded", projectRoot(directory), true)
-  })
-
   const currentSessions = createMemo(() => {
     const now = sortNow()
     const dirs = navigationSessionDirs()
@@ -2108,6 +2102,12 @@ export default function Layout(props: ParentProps) {
             "hover:bg-surface-base": !selected(),
             "opacity-70": !selected() && !(isManual() && sortable.isActiveDraggable),
           }}
+          onClick={(event) => {
+            const target = event.target
+            if (!(target instanceof HTMLElement)) return
+            if (target.closest("[data-action]")) return
+            toggleExpanded()
+          }}
         >
           <button
             type="button"
@@ -2131,21 +2131,10 @@ export default function Layout(props: ParentProps) {
                 "pr-18": project().vcs === "git" && !workspacesEnabled(),
                 "pr-12": project().vcs !== "git" || workspacesEnabled(),
               }}
-              onClick={() => {
-                if (workspacesEnabled()) {
-                  toggleExpanded()
-                  return
-                }
-                void navigateToProject(worktree())
-              }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") return
                 event.preventDefault()
-                if (workspacesEnabled()) {
-                  toggleExpanded()
-                  return
-                }
-                void navigateToProject(worktree())
+                toggleExpanded()
               }}
             >
               <Icon name="folder" size="small" class="shrink-0 text-icon-base" />
@@ -2170,6 +2159,7 @@ export default function Layout(props: ParentProps) {
                 "right-12": !workspacesEnabled(),
                 "right-6": workspacesEnabled(),
               }}
+              data-action="project-new-workspace"
               onClick={(event: MouseEvent) => {
                 event.stopPropagation()
                 void createWorkspace(project())
@@ -2183,6 +2173,7 @@ export default function Layout(props: ParentProps) {
               variant="ghost"
               aria-label={language.t("command.session.new")}
               class="absolute right-6 top-1/2 size-6 -translate-y-1/2 rounded-md opacity-0 transition-[opacity,background-color] pointer-events-none group-hover/project-row:pointer-events-auto group-hover/project-row:opacity-100 group-focus-within/project-row:pointer-events-auto group-focus-within/project-row:opacity-100"
+              data-action="project-new-session"
               onClick={(event: MouseEvent) => {
                 event.stopPropagation()
                 navigateWithSidebarReset(`/${slug()}/session`)
